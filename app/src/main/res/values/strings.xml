@@ -3,4 +3,8 @@
     <string name="toolbar_title">空氣污染</string>
     <string name="status_good">良好</string>
     <string name="status_good_description">The status is good, we want to go out to have fun</string>
+    <string name="retry">Retry</string>
+    <string name="toast_message">請注意 %1$s 的 %2$s 地區空氣品質</string>
+    <string name="empty_data">查無資料</string>
+    <string name="empty_value_place_holder">unknown</string>
 </resources>
