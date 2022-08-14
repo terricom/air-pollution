@@ -1,9 +1,13 @@
-package com.example.airpollution
+package com.example.airpollution.search
 
+import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -12,33 +16,33 @@ import androidx.paging.LoadState
 import androidx.paging.LoadStateAdapter
 import androidx.paging.filter
 import androidx.recyclerview.widget.ConcatAdapter
-import com.example.airpollution.adapter.HeaderAdapter
+import com.example.airpollution.R
 import com.example.airpollution.adapter.LoadingViewHolder
 import com.example.airpollution.adapter.RecordPagingAdapter
-import com.example.airpollution.search.SearchActivity
-import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.activity_search.*
+import kotlinx.android.synthetic.main.activity_search.editor
+import kotlinx.android.synthetic.main.activity_search.hintText
+import kotlinx.android.synthetic.main.activity_search.view.*
 import kotlinx.android.synthetic.main.holder_loading.view.*
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
-class MainActivity : AppCompatActivity() {
+class SearchActivity: AppCompatActivity() {
 
-    private val viewModel: MainViewModel by viewModels()
-    private var headerAdapter: HeaderAdapter? = null
+    private val viewModel: SearchViewModel by viewModels()
     private var recordPagingAdapter: RecordPagingAdapter? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.activity_search)
         initLayout()
         viewModel.observe()
     }
 
     private fun initLayout() {
-        headerAdapter = HeaderAdapter()
         recordPagingAdapter = RecordPagingAdapter {
-            Toast.makeText(this@MainActivity, getString(R.string.toast_message, it.county, it.siteName), Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.toast_message, it.county, it.siteName), Toast.LENGTH_LONG).show()
         }
         val footerAdapter = object : LoadStateAdapter<LoadingViewHolder>() {
             override fun onBindViewHolder(holder: LoadingViewHolder, loadState: LoadState) {
@@ -46,7 +50,6 @@ class MainActivity : AppCompatActivity() {
                     visibility = if (loadState is LoadState.Error) View.VISIBLE else View.GONE
                     setOnClickListener {
                         it.visibility = View.GONE
-                        headerAdapter?.retry()
                         recordPagingAdapter?.retry()
                     }
                 }
@@ -69,6 +72,20 @@ class MainActivity : AppCompatActivity() {
                         is LoadState.NotLoading -> loadState.append
                         else -> loadState.refresh
                     }
+                    if (loadState.refresh is LoadState.NotLoading && loadState.append.endOfPaginationReached && (recordPagingAdapter?.itemCount ?: 0) < 1) {
+                        recyclerView?.visibility = View.GONE
+                        val searchText = editor.text.toString()
+                        with(hintText) {
+                            visibility = View.VISIBLE
+                            text = if (searchText.isBlank()) getString(R.string.init_search_hint) else getString(R.string.empty_search_hint, searchText)
+                        }
+                    } else {
+                        recyclerView?.visibility = View.VISIBLE
+                        with(hintText) {
+                            visibility = if (loadState.refresh is LoadState.Loading) View.VISIBLE else View.GONE
+                            text = getString(R.string.init_search_hint)
+                        }
+                    }
                 }
                 it.loadStateFlow
                     .distinctUntilChanged { old, new ->
@@ -80,20 +97,30 @@ class MainActivity : AppCompatActivity() {
                     }
             }
         }
-        recyclerView.adapter = ConcatAdapter(headerAdapter, recordPagingAdapter, footerAdapter)
-        searchIcon.setOnClickListener { SearchActivity.startActivity(this) }
-    }
-
-    private fun MainViewModel.observe() {
-        headerPagingData.observe(this@MainActivity) {
-            lifecycleScope.launch {
-                headerAdapter?.submitData(it.filter { it.pmValue.toIntOrNull() != null && it.pmValue.toInt() < filterValue })
+        recyclerView.adapter = ConcatAdapter(recordPagingAdapter, footerAdapter)
+        with(editor) {
+            setOnEditorActionListener { editText, actionId, event ->
+                when (actionId) {
+                    EditorInfo.IME_ACTION_SEARCH -> recordPagingAdapter?.refresh()
+                }
+                return@setOnEditorActionListener false
             }
         }
-        recordPagingData.observe(this@MainActivity) {
+        back.setOnClickListener { onBackPressed() }
+    }
+
+
+    private fun SearchViewModel.observe() {
+        recordPagingData.observe(this@SearchActivity) {
             lifecycleScope.launch {
-                recordPagingAdapter?.submitData(it.filter { (it.pmValue.toIntOrNull() ?: filterValue) >= filterValue })
+                recordPagingAdapter?.submitData(it.filter { !editor.text.isNullOrEmpty() && it.siteName.contains(editor.text.toString()) })
             }
+        }
+    }
+
+    companion object {
+        fun startActivity(activity: AppCompatActivity) {
+            activity.startActivity(Intent(activity, SearchActivity::class.java))
         }
     }
 }

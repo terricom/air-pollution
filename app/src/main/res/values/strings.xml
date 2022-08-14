@@ -7,4 +7,7 @@
     <string name="toast_message">請注意 %1$s 的 %2$s 地區空氣品質</string>
     <string name="empty_data">查無資料</string>
     <string name="empty_value_place_holder">unknown</string>
+    <string name="search_placeholder">請輸入「站名」</string>
+    <string name="empty_search_hint">找不到「%1$s」\n相關的空汙資訊</string>
+    <string name="init_search_hint">輸入「站名」\n查詢該地區空汙資訊</string>
 </resources>
